@@ -414,6 +414,84 @@ export default {
 
 
     /* ============================================================
+       SCREENSHOT ENDPOINT
+       ============================================================ */
+
+    if (url.pathname === "/screenshot") {
+
+      const targetUrl = url.searchParams.get("url");
+
+      if (!targetUrl) {
+        return new Response(
+          "Missing URL parameter",
+          { status: 400, headers: corsHeaders }
+        );
+      }
+
+      let parsedTarget;
+      try {
+        parsedTarget = new URL(targetUrl);
+      } catch (error) {
+        return new Response(
+          "Invalid target URL",
+          { status: 400, headers: corsHeaders }
+        );
+      }
+
+      try {
+        if (!env.BROWSER) {
+          return new Response(
+            "Browser Rendering binding is not configured.",
+            { status: 500, headers: corsHeaders }
+          );
+        }
+
+        const screenshot = await env.BROWSER.quickAction(
+          "screenshot",
+          {
+            url: parsedTarget.href,
+            screenshotOptions: {
+              type: "png",
+              fullPage: false
+            },
+            viewport: {
+              width: 375,
+              height: 680,
+              deviceScaleFactor: 2
+            },
+            gotoOptions: {
+              waitUntil: "networkidle2",
+              timeout: 30000
+            }
+          }
+        );
+
+        return new Response(screenshot, {
+          status: 200,
+          headers: {
+            "Content-Type": "image/png",
+            "Cache-Control": "public, max-age=60",
+            ...corsHeaders
+          }
+        });
+
+      } catch (error) {
+        console.error("Screenshot error:", error);
+        return new Response(
+          "Unable to generate website preview.",
+          {
+            status: 500,
+            headers: {
+              ...corsHeaders,
+              "Content-Type": "text/plain"
+            }
+          }
+        );
+      }
+    }
+
+
+    /* ============================================================
        WEBSITE PROXY
        ============================================================ */
 
@@ -536,6 +614,25 @@ export default {
         "frame-options"
       );
 
+      newHeaders.delete(
+        "cross-origin-embedder-policy"
+      );
+
+      newHeaders.delete(
+        "cross-origin-opener-policy"
+      );
+
+      newHeaders.delete(
+        "cross-origin-resource-policy"
+      );
+
+      newHeaders.delete(
+        "permissions-policy"
+      );
+
+      newHeaders.delete(
+        "x-xss-protection"
+      );
 
       newHeaders.set(
         "Access-Control-Allow-Origin",
@@ -565,20 +662,113 @@ export default {
         )
       ) {
 
-        let html =
-          await response.text();
-
-
-        const originUrl =
-          parsedTarget.origin;
-
+        let html = await response.text();
+        
+        // Strip out any Content-Security-Policy meta tags that might block our widget from loading
+        html = html.replace(/<meta[^>]*http-equiv=["']?Content-Security-Policy["']?[^>]*>/gi, "");
 
         /* ========================================================
-           BASE URL
+           CAPTCHA DETECTION & FALLBACK
+           ======================================================== */
+        const antiBotDetected =
+          // 1. Cloudflare specific challenge URLs or IDs
+          /\/cdn-cgi\/challenge-platform\//i.test(html) ||
+          /id="(cf-wrapper|challenge-running|cf-please-wait)"/i.test(html) ||
+          // 2. Common anti-bot page titles
+          /<title>(Just a moment\.\.\.|Attention Required!.*|Security Challenge.*)<\/title>/i.test(html) ||
+          // 3. Common phrases on CAPTCHA / block pages
+          /checking your browser before accessing|please complete the security check to access|please verify you are (a )?human|enable javascript and cookies to continue|why do i have to complete a captcha/i.test(html) ||
+          // 4. Any explicit HTTP block status (if proxy is blocked, fallback to screenshot)
+          response.status === 403 || 
+          response.status === 429;
+
+        if (antiBotDetected) {
+          // Use a reliable third-party screenshot API so it works out of the box
+          const screenshotUrl = `https://image.thum.io/get/width/400/crop/800/${parsedTarget.href}`;
+
+          return new Response(
+            `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <style>
+                html, body {
+                  margin: 0; padding: 0;
+                  width: 100%; height: 100%;
+                  overflow: hidden;
+                  background: #ffffff;
+                }
+                .website-preview {
+                  width: 100%; height: 100%;
+                  display: flex;
+                  align-items: flex-start; justify-content: center;
+                  overflow: hidden;
+                  background: #ffffff;
+                }
+                .website-preview img {
+                  display: block;
+                  width: 100%; height: auto;
+                  min-height: 100%;
+                  object-fit: cover; object-position: top center;
+                }
+                .fallback-msg {
+                  display: none;
+                  font-family: sans-serif;
+                  text-align: center;
+                  padding: 40px 20px;
+                  color: #666;
+                }
+              </style>
+            </head>
+            <body>
+              <div class="website-preview">
+                <img src="${screenshotUrl}" alt="Website preview" onerror="this.style.display='none'; document.getElementById('fallback').style.display='block';">
+                <div id="fallback" class="fallback-msg">
+                  <h3>Preview Unavailable</h3>
+                  <p>We could not load a preview of this website.</p>
+                  <p style="font-size: 12px; color: #999;">(Make sure Cloudflare Browser Rendering is enabled and bound to BROWSER in your Worker settings)</p>
+                </div>
+              </div>
+              <script>
+                // Force the GHL widget to render in mobile mode
+                Object.defineProperty(navigator, 'userAgent', {
+                  get: function () {
+                    return 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1';
+                  }
+                });
+              </script>
+              <script
+                src="https://widgets.leadconnectorhq.com/loader.js"
+                data-resources-url="https://widgets.leadconnectorhq.com/chat-widget/loader.js"
+                data-widget-id="6a8c69110916f988385fa4de">
+              </script>
+            </body>
+            </html>
+            `,
+            {
+              status: 200,
+              headers: {
+                "Content-Type": "text/html; charset=UTF-8",
+                "Cache-Control": "no-store",
+                ...corsHeaders
+              }
+            }
+          );
+        }
+
+        // Force all http:// links/assets to https:// to prevent Mixed Content errors
+        html = html.replace(/http:\/\//gi, "https://");
+
+        const originUrl = parsedTarget.origin.replace("http://", "https://");
+
+        /* ========================================================
+           BASE URL & HTTPS UPGRADE
            ======================================================== */
 
         const baseTag = `
 <base href="${originUrl}/">
+<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
 `;
 
 
@@ -764,7 +954,8 @@ ${scrollFix}
 <script
   src="https://widgets.leadconnectorhq.com/loader.js"
   data-resources-url="https://widgets.leadconnectorhq.com/chat-widget/loader.js"
-  data-widget-id="6a8c69110916f988385fa4de">
+  data-widget-id="6a8c69110916f988385fa4de"
+  async defer>
 </script>
 `;
 
@@ -780,7 +971,6 @@ ${scrollFix}
         } else {
           html += ghlScript;
         }
-
 
         /* ========================================================
            RETURN HTML

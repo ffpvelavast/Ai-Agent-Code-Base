@@ -993,9 +993,33 @@
       return;
     }
 
-
-    window.agentWidgetLoaded =
-      true;
+    /*
+     * INTERCEPT APPEND CHILD
+     * 
+     * GHL uses document.body.appendChild to add the widget.
+     * Moving the widget AFTER it is added breaks Turnstile.
+     * So we intercept appendChild and redirect it to phoneScreen.
+     */
+    const originalAppendChild = document.body.appendChild;
+    document.body.appendChild = function(node) {
+      if (node && node.tagName === 'CHAT-WIDGET') {
+        const phoneScreen = document.getElementById("phone-screen-container");
+        if (phoneScreen) {
+          // Add it directly to phoneScreen instead of body
+          const result = phoneScreen.appendChild(node);
+          
+          // Style it immediately
+          styleGhlWidget(node);
+          injectShadowDomFix(node);
+          
+          // Restore original appendChild
+          document.body.appendChild = originalAppendChild;
+          
+          return result;
+        }
+      }
+      return originalAppendChild.call(this, node);
+    };
 
 
     const script =
@@ -1049,6 +1073,9 @@
     loader.appendChild(
       script
     );
+
+    window.agentWidgetLoaded =
+      true;
   }
 
 
