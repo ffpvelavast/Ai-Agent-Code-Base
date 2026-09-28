@@ -16,6 +16,13 @@
 
         <div class="phone-viewport-container">
 
+          <!-- Loading Overlay -->
+          <div id="ghl-iframe-loader" class="ghl-loader-overlay">
+            <div class="ghl-modern-spinner">
+              <div></div><div></div><div></div><div></div>
+            </div>
+          </div>
+
           <iframe
             id="ghl-dynamic-iframe"
             title="Live Mobile Demo"
@@ -53,6 +60,35 @@
 <script>
 
 (function () {
+
+  /* ============================================================
+     SEAMLESS AI CONTEXT INJECTOR (Fetch Interceptor)
+     ============================================================ */
+  const originalFetch = window.fetch;
+  let contextInjected = false;
+  let cachedTarget = null;
+  
+  window.fetch = async function(url, options) {
+    if (url && typeof url === 'string' && url.includes('/chat-widget/message') && options && options.body) {
+      if (!contextInjected) {
+        try {
+          if (!cachedTarget) {
+            const urlParams = new URLSearchParams(window.location.search);
+            cachedTarget = urlParams.get("website") || urlParams.get("company_website") || urlParams.get("contact.website") || urlParams.get("url") || localStorage.getItem("user_submitted_website") || sessionStorage.getItem("user_submitted_website");
+          }
+          if (cachedTarget) {
+            let body = JSON.parse(options.body);
+            if (body.message) {
+              body.message = body.message + `\n\n[System Note: The user's website is ${cachedTarget}. Please use this to pull up their specific information.]`;
+              options.body = JSON.stringify(body);
+              contextInjected = true;
+            }
+          }
+        } catch(e) {}
+      }
+    }
+    return originalFetch.apply(this, arguments);
+  };
 
   /* ============================================================
      CONFIGURATION
@@ -232,6 +268,10 @@
         "ghl-dynamic-iframe"
       );
 
+    const loader =
+      document.getElementById(
+        "ghl-iframe-loader"
+      );
 
     if (!iframe) {
 
@@ -241,6 +281,20 @@
 
       return;
     }
+
+    if (loader) {
+      loader.style.opacity = "1";
+      loader.style.visibility = "visible";
+    }
+
+    iframe.onload = function() {
+      if (loader) {
+        loader.style.opacity = "0";
+        setTimeout(function() {
+          loader.style.visibility = "hidden";
+        }, 500);
+      }
+    };
 
 
     const target =
@@ -1402,6 +1456,50 @@
 
 chat-widget {
   display: none !important;
+}
+
+/* ==============================================================
+   LOADER
+   ============================================================== */
+
+.ghl-loader-overlay {
+  position: absolute !important;
+  inset: 0 !important;
+  background: #ffffff !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  z-index: 10 !important;
+  transition: opacity 0.5s ease, visibility 0.5s ease !important;
+}
+
+.ghl-modern-spinner {
+  display: inline-block !important;
+  position: relative !important;
+  width: 80px !important;
+  height: 80px !important;
+}
+
+.ghl-modern-spinner div {
+  box-sizing: border-box !important;
+  display: block !important;
+  position: absolute !important;
+  width: 64px !important;
+  height: 64px !important;
+  margin: 8px !important;
+  border: 4px solid #155EEF !important;
+  border-radius: 50% !important;
+  animation: ghl-modern-spinner 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite !important;
+  border-color: #155EEF transparent transparent transparent !important;
+}
+
+.ghl-modern-spinner div:nth-child(1) { animation-delay: -0.45s !important; }
+.ghl-modern-spinner div:nth-child(2) { animation-delay: -0.3s !important; }
+.ghl-modern-spinner div:nth-child(3) { animation-delay: -0.15s !important; }
+
+@keyframes ghl-modern-spinner {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 </style>
