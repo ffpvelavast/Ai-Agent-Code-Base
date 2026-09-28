@@ -452,7 +452,7 @@ export default {
             url: parsedTarget.href,
             screenshotOptions: {
               type: "png",
-              fullPage: false
+              fullPage: true
             },
             viewport: {
               width: 375,
@@ -670,21 +670,56 @@ export default {
         /* ========================================================
            CAPTCHA DETECTION & FALLBACK
            ======================================================== */
+        
+        // Strip ALL HTML tags, spaces, punctuation, and newlines to create a pure alphabetic string.
+        // This makes it 100% bulletproof against any formatting or hidden tags (e.g. <b>ro</b>bot).
+        const pureText = html.replace(/<[^>]+>/g, '').replace(/[^a-zA-Z]/g, '').toLowerCase();
+
         const antiBotDetected =
           // 1. Cloudflare specific challenge URLs or IDs
           /\/cdn-cgi\/challenge-platform\//i.test(html) ||
           /id="(cf-wrapper|challenge-running|cf-please-wait)"/i.test(html) ||
           // 2. Common anti-bot page titles
           /<title>(Just a moment\.\.\.|Attention Required!.*|Security Challenge.*)<\/title>/i.test(html) ||
-          // 3. Common phrases on CAPTCHA / block pages
-          /checking your browser before accessing|please complete the security check to access|please verify you are (a )?human|enable javascript and cookies to continue|why do i have to complete a captcha/i.test(html) ||
-          // 4. Any explicit HTTP block status (if proxy is blocked, fallback to screenshot)
+          // 3. Other Major WAF Signatures (Incapsula, PerimeterX, DataDome, AWS)
+          /\/_Incapsula_Resource/i.test(html) ||
+          /incap_sess_/i.test(html) ||
+          /_pxCaptcha/i.test(html) ||
+          /client\.perimeterx\.net/i.test(html) ||
+          /captcha-delivery\.com/i.test(html) ||
+          /aws-waf-captcha/i.test(html) ||
+          // 4. Bulletproof pure-text phrase matching
+          pureText.includes('checkingyourbrowserbeforeaccessing') ||
+          pureText.includes('pleasecompletethesecuritychecktoaccess') ||
+          pureText.includes('verifyyouareahuman') ||
+          pureText.includes('verifyyouarehuman') ||
+          pureText.includes('enablejavascriptandcookies') ||
+          pureText.includes('completeacaptcha') ||
+          pureText.includes('systemthinksyoumightbearobot') ||
+          pureText.includes('retypethecaptchacode') ||
+          pureText.includes('proveyoureahuman') ||
+          pureText.includes('pleasetypeintherequiredcaptcha') ||
+          pureText.includes('enteringtheletters') ||
+          pureText.includes('entertheletters') ||
+          pureText.includes('typecharacters') ||
+          pureText.includes('enterthecharacters') ||
+          pureText.includes('entertheword') ||
+          pureText.includes('fillthecaptcha') ||
+          pureText.includes('verifythecaptcha') ||
+          // 5. Broad word combos (if it mentions captcha AND robot/human)
+          (/captcha/i.test(html) && /robot|human|security check/i.test(html)) ||
+          // 6. Any explicit HTTP block status (if proxy is blocked, fallback to screenshot)
           response.status === 403 || 
-          response.status === 429;
+          response.status === 429 ||
+          response.status === 401 ||
+          response.status === 503 ||
+          response.status === 202;
 
         if (antiBotDetected) {
-          // Use a reliable third-party screenshot API so it works out of the box
-          const screenshotUrl = `https://image.thum.io/get/width/400/crop/800/${parsedTarget.href}`;
+          // TRICK: Instead of fullPage=true (which causes stitching/repeating), 
+          // we make the viewport extremely tall (10000px) so it captures one massive 
+          // seamless image that the user can scroll through. (Added force=true to bust cache)
+          const screenshotUrl = `https://api.microlink.io/?url=${encodeURIComponent(parsedTarget.href)}&screenshot=true&meta=false&embed=screenshot.url&viewport.width=375&viewport.height=10000&viewport.deviceScaleFactor=2&viewport.isMobile=true&force=true`;
 
           return new Response(
             `
@@ -696,21 +731,20 @@ export default {
                 html, body {
                   margin: 0; padding: 0;
                   width: 100%; height: 100%;
-                  overflow: hidden;
+                  overflow-x: hidden;
+                  overflow-y: auto;
                   background: #ffffff;
                 }
                 .website-preview {
-                  width: 100%; height: 100%;
-                  display: flex;
-                  align-items: flex-start; justify-content: center;
-                  overflow: hidden;
+                  width: 100%; 
+                  min-height: 100%;
+                  display: block;
                   background: #ffffff;
                 }
                 .website-preview img {
                   display: block;
-                  width: 100%; height: auto;
-                  min-height: 100%;
-                  object-fit: cover; object-position: top center;
+                  width: 100%; 
+                  height: auto;
                 }
                 .fallback-msg {
                   display: none;
@@ -741,7 +775,7 @@ export default {
               <script
                 src="https://widgets.leadconnectorhq.com/loader.js"
                 data-resources-url="https://widgets.leadconnectorhq.com/chat-widget/loader.js"
-                data-widget-id="6a8c69110916f988385fa4de">
+                data-widget-id="6aaccce19d58142ef9ac2d87">
               </script>
             </body>
             </html>
@@ -954,7 +988,7 @@ ${scrollFix}
 <script
   src="https://widgets.leadconnectorhq.com/loader.js"
   data-resources-url="https://widgets.leadconnectorhq.com/chat-widget/loader.js"
-  data-widget-id="6a8c69110916f988385fa4de"
+  data-widget-id="6aaccce19d58142ef9ac2d87"
   async defer>
 </script>
 `;
