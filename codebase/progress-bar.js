@@ -210,6 +210,8 @@
   let pollTimer = null;
 
   let observer = null;
+  
+  let pollCount = 0;
 
 
   /* ============================================================
@@ -436,26 +438,31 @@
      OPERATION ID
      ============================================================ */
 
+  function getTargetWebsite() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("website") || params.get("company_website") || params.get("contact.website") || params.get("url") || "";
+  }
+
   function getOperationId() {
+    const params = new URLSearchParams(window.location.search);
+    const urlOpId = params.get("operationId") || params.get("opId");
+    
+    if (urlOpId) {
+      return urlOpId;
+    }
 
-    const params =
-      new URLSearchParams(
-        window.location.search
-      );
+    const cachedWebsite = sessionStorage.getItem("crawl_website");
+    const currentWebsite = getTargetWebsite();
+    
+    // If the website changed, the old operation ID is invalid.
+    if (currentWebsite && cachedWebsite && currentWebsite !== cachedWebsite) {
+      console.log("Website changed, clearing old operation ID.");
+      sessionStorage.removeItem("crawl_operation_id");
+      sessionStorage.setItem("crawl_website", currentWebsite);
+      return null;
+    }
 
-
-    return (
-
-      params.get("operationId") ||
-
-      params.get("opId") ||
-
-      sessionStorage.getItem(
-        "crawl_operation_id"
-      )
-
-    );
-
+    return sessionStorage.getItem("crawl_operation_id");
   }
 
 
@@ -473,6 +480,13 @@
       id
     );
 
+    const currentWebsite = getTargetWebsite();
+    if (currentWebsite) {
+      sessionStorage.setItem(
+        "crawl_website",
+        currentWebsite
+      );
+    }
   }
 
 
@@ -487,6 +501,8 @@
       return;
 
     }
+
+    pollCount++;
 
 
     const operationId =
@@ -567,19 +583,21 @@
         data.operationDetails || {};
 
 
-      if (details._id) {
-
-        saveOperationId(
-          details._id
-        );
-
-      }
-
-
       const status =
         String(
           details.status || ""
         ).toLowerCase();
+
+      if (details._id) {
+        if (
+          status === "in_progress" || 
+          status === "crawling" || 
+          status === "training" || 
+          pollCount >= 5
+        ) {
+          saveOperationId(details._id);
+        }
+      }
 
 
       /* ========================================================
@@ -595,6 +613,18 @@
         status === "completed"
 
       ) {
+
+        /* 
+         * RACE CONDITION FIX:
+         * If we don't have a specific operation ID, GHL will return the status
+         * of the LAST crawl. If this happens in the first 15 seconds (5 polls),
+         * it is almost certainly the old crawl from a previous test, because
+         * the new crawl takes a few seconds just to get queued by the webhook.
+         */
+        if (!operationId && pollCount < 5) {
+          console.log("Ignoring early success status (poll " + pollCount + "), waiting for new crawl to register.");
+          return;
+        }
 
         crawlCompleted = true;
 
@@ -849,7 +879,26 @@
       "data-widget-id",
       "6a8c69c3c041361bdc038c9b"
     );
+    
+    // INJECT URL PARAMETERS FOR PREFILL
+    const urlParams = new URLSearchParams(window.location.search);
+    const firstName = urlParams.get('first_name') || urlParams.get('name');
+    const email = urlParams.get('email');
+    const phone = urlParams.get('phone');
+    const company = urlParams.get('company');
 
+    if (firstName) script.setAttribute("data-first-name", firstName);
+    if (email) script.setAttribute("data-email", email);
+    if (phone) script.setAttribute("data-phone", phone);
+    if (company) script.setAttribute("data-company", company);
+
+    // Also set global config just in case GHL uses that
+    window.chatWidgetConfig = {
+      name: firstName || "",
+      email: email || "",
+      phone: phone || ""
+    };
+    window.chatWidgetData = window.chatWidgetConfig;
 
     script.onload =
       function () {

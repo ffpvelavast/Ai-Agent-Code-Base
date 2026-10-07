@@ -771,6 +771,75 @@ export default {
                     return 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1';
                   }
                 });
+
+                // Cross-origin iframe GHL Autofill
+                (function() {
+                  const firstName = "${url.searchParams.get('first_name') || ''}";
+                  const email = "${url.searchParams.get('email') || ''}";
+                  const phone = "${url.searchParams.get('phone') || ''}";
+                  const company = "${url.searchParams.get('company') || ''}";
+                  if (!firstName && !email && !phone && !company) return;
+
+                  let attempts = 0;
+                  const autofillInterval = setInterval(() => {
+                    attempts++;
+                    
+                    function findAllInputsDeep(node, found = []) {
+                      if (!node) return found;
+                      if (node.tagName === 'INPUT') found.push(node);
+                      if (node.shadowRoot) findAllInputsDeep(node.shadowRoot, found);
+                      let child = node.firstChild;
+                      while (child) {
+                        findAllInputsDeep(child, found);
+                        child = child.nextSibling;
+                      }
+                      return found;
+                    }
+                    
+                    const allDeepInputs = findAllInputsDeep(document);
+                    
+                    // ONLY look at inputs that belong to the GHL widget to avoid accidentally filling client website forms!
+                    const ghlInputs = allDeepInputs.filter(i => {
+                      const c = i.className || '';
+                      const id = i.id || '';
+                      return (typeof c === 'string' && c.includes('lc_text-widget')) || (typeof id === 'string' && id.includes('msgsndr'));
+                    });
+                    
+                    let filled = false;
+                    const nameInput = ghlInputs.find(i => i.name === 'name' || i.id === 'msgsndr_1');
+                    const emailInput = ghlInputs.find(i => i.name === 'email' || i.id === 'msgsndr_3');
+                    const phoneInput = ghlInputs.find(i => i.type === 'tel' || i.name === 'phone' || i.id === 'msgsndr_2');
+                    const companyInput = ghlInputs.find(i => {
+                      const n = (i.name || '').toLowerCase();
+                      const id = (i.id || '').toLowerCase();
+                      const p = (i.placeholder || '').toLowerCase();
+                      const a = (i.getAttribute('aria-label') || '').toLowerCase();
+                      return n.includes('company') || id.includes('company') || p.includes('company') || a.includes('company');
+                    });
+                    
+                    const setReactValue = (input, value) => {
+                      if (!input || !value) return;
+                      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+                      if (nativeInputValueSetter) {
+                        nativeInputValueSetter.call(input, value);
+                      } else {
+                        input.value = value;
+                      }
+                      input.dispatchEvent(new Event('input', { bubbles: true }));
+                      input.dispatchEvent(new Event('change', { bubbles: true }));
+                    };
+
+                    if (nameInput && firstName && !nameInput.value) { setReactValue(nameInput, firstName); filled = true; }
+                    if (emailInput && email && !emailInput.value) { setReactValue(emailInput, email); filled = true; }
+                    if (phoneInput && phone && !phoneInput.value) { setReactValue(phoneInput, phone); filled = true; }
+                    if (companyInput && company && !companyInput.value) { setReactValue(companyInput, company); filled = true; }
+
+                    if (filled) {
+                      clearInterval(autofillInterval);
+                    }
+                    if (attempts > 1200) clearInterval(autofillInterval);
+                  }, 500);
+                })();
               </script>
               <script
                 src="https://widgets.leadconnectorhq.com/loader.js"
@@ -976,6 +1045,11 @@ ${scrollFix}
            INJECT GHL SCRIPT & FORCE MOBILE
            ======================================================== */
 
+        const firstName = url.searchParams.get('first_name') || '';
+        const email = url.searchParams.get('email') || '';
+        const phone = url.searchParams.get('phone') || '';
+        const company = url.searchParams.get('company') || '';
+
         const ghlScript = `
 <script>
   // Force the GHL widget to render in mobile mode by overriding the User Agent
@@ -984,6 +1058,75 @@ ${scrollFix}
       return 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1';
     }
   });
+
+  // Cross-origin iframe GHL Autofill
+  (function() {
+    const firstName = "${firstName}";
+    const email = "${email}";
+    const phone = "${phone}";
+    const company = "${company}";
+    if (!firstName && !email && !phone && !company) return;
+
+    let attempts = 0;
+    const autofillInterval = setInterval(() => {
+      attempts++;
+      
+      function findAllInputsDeep(node, found = []) {
+        if (!node) return found;
+        if (node.tagName === 'INPUT') found.push(node);
+        if (node.shadowRoot) findAllInputsDeep(node.shadowRoot, found);
+        let child = node.firstChild;
+        while (child) {
+          findAllInputsDeep(child, found);
+          child = child.nextSibling;
+        }
+        return found;
+      }
+      
+      const allDeepInputs = findAllInputsDeep(document);
+      
+      // ONLY look at inputs that belong to the GHL widget to avoid accidentally filling client website forms!
+      const ghlInputs = allDeepInputs.filter(i => {
+        const c = i.className || '';
+        const id = i.id || '';
+        return (typeof c === 'string' && c.includes('lc_text-widget')) || (typeof id === 'string' && id.includes('msgsndr'));
+      });
+      
+      let filled = false;
+      const nameInput = ghlInputs.find(i => i.name === 'name' || i.id === 'msgsndr_1');
+      const emailInput = ghlInputs.find(i => i.name === 'email' || i.id === 'msgsndr_3');
+      const phoneInput = ghlInputs.find(i => i.type === 'tel' || i.name === 'phone' || i.id === 'msgsndr_2');
+      const companyInput = ghlInputs.find(i => {
+        const n = (i.name || '').toLowerCase();
+        const id = (i.id || '').toLowerCase();
+        const p = (i.placeholder || '').toLowerCase();
+        const a = (i.getAttribute('aria-label') || '').toLowerCase();
+        return n.includes('company') || id.includes('company') || p.includes('company') || a.includes('company');
+      });
+      
+      const setReactValue = (input, value) => {
+        if (!input || !value) return;
+        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+        if (nativeInputValueSetter) {
+          nativeInputValueSetter.call(input, value);
+        } else {
+          input.value = value;
+        }
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      };
+
+      if (nameInput && firstName && !nameInput.value) { setReactValue(nameInput, firstName); filled = true; }
+      if (emailInput && email && !emailInput.value) { setReactValue(emailInput, email); filled = true; }
+      if (phoneInput && phone && !phoneInput.value) { setReactValue(phoneInput, phone); filled = true; }
+      if (companyInput && company && !companyInput.value) { setReactValue(companyInput, company); filled = true; }
+
+      if (filled) {
+        clearInterval(autofillInterval);
+      }
+      if (attempts > 1200) clearInterval(autofillInterval);
+    }, 500);
+  })();
 </script>
 <script
   src="https://widgets.leadconnectorhq.com/loader.js"

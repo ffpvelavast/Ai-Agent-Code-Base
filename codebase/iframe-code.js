@@ -28,6 +28,7 @@
             title="Live Mobile Demo"
             loading="eager"
             scrolling="yes"
+            allow="microphone *; camera *; display-capture *"
             allowfullscreen>
           </iframe>
 
@@ -67,27 +68,75 @@
   const originalFetch = window.fetch;
   let contextInjected = false;
   let cachedTarget = null;
+  let cachedCompany = null;
   
-  window.fetch = async function(url, options) {
-    if (url && typeof url === 'string' && url.includes('/chat-widget/message') && options && options.body) {
-      if (!contextInjected) {
-        try {
-          if (!cachedTarget) {
-            const urlParams = new URLSearchParams(window.location.search);
-            cachedTarget = urlParams.get("website") || urlParams.get("company_website") || urlParams.get("contact.website") || urlParams.get("url") || localStorage.getItem("user_submitted_website") || sessionStorage.getItem("user_submitted_website");
+  window.fetch = async function(resource, options) {
+    let url = '';
+    if (typeof resource === 'string') url = resource;
+    else if (resource && resource.url) url = resource.url;
+
+    // Broadened to catch any GoHighLevel/LeadConnector message endpoints
+    if (options && options.body && !contextInjected) {
+      try {
+        if (!cachedTarget) {
+          const urlParams = new URLSearchParams(window.location.search);
+          cachedTarget = urlParams.get("website") || urlParams.get("company_website") || urlParams.get("contact.website") || urlParams.get("url") || localStorage.getItem("user_submitted_website") || sessionStorage.getItem("user_submitted_website");
+          cachedCompany = urlParams.get("company_name") || urlParams.get("company") || urlParams.get("first_name");
+        }
+        if (cachedTarget && typeof options.body === 'string') {
+          let bodyObj = JSON.parse(options.body);
+          // Only intercept if it's actually sending a chat message
+          if (bodyObj.message !== undefined && (url.includes('leadconnector') || url.includes('chat-widget') || url.includes('msgsndr'))) {
+            let injectNote = `\n\n[System Note: The user's website is ${cachedTarget}.`;
+            if (cachedCompany) injectNote += ` The company name is ${cachedCompany}.`;
+            injectNote += `]`;
+            bodyObj.message = bodyObj.message + injectNote;
+            options.body = JSON.stringify(bodyObj);
+            contextInjected = true;
           }
-          if (cachedTarget) {
-            let body = JSON.parse(options.body);
-            if (body.message) {
-              body.message = body.message + `\n\n[System Note: The user's website is ${cachedTarget}. Please use this to pull up their specific information.]`;
-              options.body = JSON.stringify(body);
-              contextInjected = true;
-            }
-          }
-        } catch(e) {}
+        }
+      } catch(e) {
+        // Ignore JSON parse errors for non-JSON bodies
       }
     }
     return originalFetch.apply(this, arguments);
+  };
+
+  /* ============================================================
+     SEAMLESS AI CONTEXT INJECTOR (XHR Interceptor)
+     ============================================================ */
+  const originalXhrOpen = XMLHttpRequest.prototype.open;
+  const originalXhrSend = XMLHttpRequest.prototype.send;
+  
+  XMLHttpRequest.prototype.open = function(method, url) {
+    this._url = url;
+    return originalXhrOpen.apply(this, arguments);
+  };
+  
+  XMLHttpRequest.prototype.send = function(body) {
+    if (body && typeof body === 'string' && !contextInjected) {
+      try {
+        if (!cachedTarget) {
+          const urlParams = new URLSearchParams(window.location.search);
+          cachedTarget = urlParams.get("website") || urlParams.get("company_website") || urlParams.get("contact.website") || urlParams.get("url") || localStorage.getItem("user_submitted_website") || sessionStorage.getItem("user_submitted_website");
+          cachedCompany = urlParams.get("company_name") || urlParams.get("company") || urlParams.get("first_name");
+        }
+        if (cachedTarget) {
+          let parsedBody = JSON.parse(body);
+          if (parsedBody.message !== undefined && (this._url.includes('leadconnector') || this._url.includes('chat-widget') || this._url.includes('msgsndr'))) {
+            let injectNote = `\n\n[System Note: The user's website is ${cachedTarget}.`;
+            if (cachedCompany) injectNote += ` The company name is ${cachedCompany}.`;
+            injectNote += `]`;
+            parsedBody.message = parsedBody.message + injectNote;
+            body = JSON.stringify(parsedBody);
+            contextInjected = true;
+          }
+        }
+      } catch(e) {
+        // Ignore parsing errors
+      }
+    }
+    return originalXhrSend.call(this, body);
   };
 
   /* ============================================================
@@ -304,10 +353,20 @@
       DEFAULT_WEBSITE;
 
 
-    const proxyUrl =
+    const urlParams = new URLSearchParams(window.location.search);
+    const firstName = urlParams.get('first_name') || urlParams.get('name') || '';
+    const email = urlParams.get('email') || '';
+    const phone = urlParams.get('phone') || '';
+    const company = urlParams.get('company') || '';
+
+    let proxyUrl =
       WORKER_PROXY_URL +
       encodeURIComponent(target);
 
+    // Pass the parameters to the Cloudflare worker proxy so it can inject the autofill script inside the iframe!
+    if (firstName || email || phone || company) {
+        proxyUrl += `&first_name=${encodeURIComponent(firstName)}&email=${encodeURIComponent(email)}&phone=${encodeURIComponent(phone)}&company=${encodeURIComponent(company)}`;
+    }
 
     console.log(
       "Loading website:",
@@ -407,19 +466,20 @@
     }
 
 
-    styleGhlWidget(
+    autoFillChatWidgetForm(
       chatWidget
     );
 
+    styleGhlWidget(
+      chatWidget
+    );
 
     injectShadowDomFix(
       chatWidget
     );
 
-
     return true;
   }
-
 
   /* ============================================================
      STYLE OUTER GHL WIDGET
@@ -946,6 +1006,7 @@
                 function () {
 
                   notifyWidgetReady();
+                  autoFillGhlForm();
 
                 },
                 1000
@@ -974,6 +1035,13 @@
         },
         500
       );
+  }
+
+  /* ============================================================
+     AUTO-FILL GHL WIDGET FORM FROM URL PARAMS
+     ============================================================ */
+  function autoFillGhlForm() {
+    console.log("AutoFill is now handled natively by the Cloudflare Worker proxy.");
   }
 
 
@@ -1145,6 +1213,7 @@
 
 
     updatePhoneIframe();
+    autoFillGhlForm();
 
   }
 
