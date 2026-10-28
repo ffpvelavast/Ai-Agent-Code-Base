@@ -32,6 +32,14 @@
    PROGRESS CONTAINER
    ============================================================ */
 
+/* Hide all GHL sections during progress */
+body:not(.asap-crawl-complete) .c-section:not(#dynamic-progress-wrapper):not(:has(#dynamic-progress-wrapper)),
+body:not(.asap-crawl-complete) section:not(#dynamic-progress-wrapper):not(:has(#dynamic-progress-wrapper)),
+body:not(.asap-crawl-complete) div[id^="section-"]:not(:has(#dynamic-progress-wrapper)) {
+  display: none !important;
+  visibility: hidden !important;
+}
+
 .progress-container {
 
   width:100%;
@@ -230,159 +238,64 @@
      ============================================================ */
 
   function hideElement(el) {
-
     if (!el) return;
-
-    el.style.setProperty(
-      "display",
-      "none",
-      "important"
-    );
-
-    el.style.setProperty(
-      "visibility",
-      "hidden",
-      "important"
-    );
-
-    el.style.setProperty(
-      "opacity",
-      "0",
-      "important"
-    );
-
-    el.setAttribute(
-      "data-crawl-hidden",
-      "true"
-    );
-
+    const progressWrapper = getElement("dynamic-progress-wrapper");
+    if (progressWrapper && (el === progressWrapper || el.contains(progressWrapper) || progressWrapper.contains(el))) {
+      return;
+    }
+    el.style.setProperty("display", "none", "important");
+    el.style.setProperty("visibility", "hidden", "important");
+    el.style.setProperty("opacity", "0", "important");
+    el.setAttribute("data-crawl-hidden", "true");
   }
-
-
-  /* ============================================================
-     SHOW SECTION
-     ============================================================ */
 
   function showElement(el) {
-
     if (!el) return;
-
     el.style.removeProperty("display");
-
     el.style.removeProperty("visibility");
-
     el.style.removeProperty("opacity");
-
-    el.removeAttribute(
-      "data-crawl-hidden"
-    );
-
+    el.removeAttribute("data-crawl-hidden");
   }
-
-
-  /* ============================================================
-     HIDE ALL SECTIONS
-     ============================================================ */
 
   function hideSections() {
-
     SECTION_IDS.forEach(function (id) {
-
       const el = getElement(id);
-
-      if (el) {
-
-        hideElement(el);
-
-      }
-
+      if (el) hideElement(el);
     });
 
+    const progressWrapper = getElement("dynamic-progress-wrapper");
+    const allSections = document.querySelectorAll('.c-section, div[id^="section-"], section');
+    allSections.forEach(function (sec) {
+      if (progressWrapper && (sec === progressWrapper || sec.contains(progressWrapper) || progressWrapper.contains(sec))) {
+        return;
+      }
+      hideElement(sec);
+    });
   }
-
-
-  /* ============================================================
-     SHOW ALL SECTIONS
-     ============================================================ */
 
   function showSections() {
-
-    console.log(
-      "Showing all sections..."
-    );
-
+    console.log("Showing all sections...");
+    document.body.classList.add("asap-crawl-complete");
 
     SECTION_IDS.forEach(function (id) {
-
       const el = getElement(id);
-
-      if (el) {
-
-        showElement(el);
-
-        console.log(
-          "Section revealed:",
-          id
-        );
-
-      }
-
+      if (el) showElement(el);
     });
 
+    const hiddenElements = document.querySelectorAll('[data-crawl-hidden="true"]');
+    hiddenElements.forEach(function (el) {
+      showElement(el);
+    });
+    console.log("SUCCESS: All sections revealed.");
   }
 
-
-  /* ============================================================
-     MUTATION OBSERVER
-     
-     This handles section-W5PRTMET50 because GHL may
-     dynamically render it after our script starts.
-     ============================================================ */
-
   function startSectionObserver() {
-
     if (observer) return;
-
-
-    observer =
-      new MutationObserver(
-        function () {
-
-          if (finalCompleted) {
-
-            return;
-
-          }
-
-
-          SECTION_IDS.forEach(
-            function (id) {
-
-              const el =
-                getElement(id);
-
-
-              if (el) {
-
-                hideElement(el);
-
-              }
-
-            }
-          );
-
-        }
-      );
-
-
-    observer.observe(
-      document.body,
-      {
-        childList:true,
-        subtree:true
-      }
-    );
-
+    observer = new MutationObserver(function () {
+      if (finalCompleted) return;
+      hideSections();
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
   }
 
 

@@ -1,0 +1,466 @@
+<!-- ========================================================
+     ASAP AI - "WHAT YOUR BUSINESS SEES" DASHBOARD SIMULATOR
+     Pure CSS Keyframe Animation Loop (Zero JavaScript dependency)
+     ======================================================== -->
+
+<div class="asap-audit-wrapper" id="asapAuditWrapper">
+
+  <!-- Header -->
+  <div class="asap-audit-header">
+    <div class="asap-audit-live-dot-wrap">
+      <span class="asap-audit-live-dot"></span>
+    </div>
+    <div class="asap-audit-header-text">
+      <h4 class="asap-audit-header-title">What your business sees</h4>
+      <p class="asap-audit-header-sub">Live simulation as each message is handled</p>
+    </div>
+  </div>
+
+  <!-- Narrative Summary Box (General business context) -->
+  <div class="asap-audit-summary-box">
+    <h5 class="asap-audit-summary-title">
+      Here's what just happened<span class="asap-red-period">.</span>
+    </h5>
+    <p class="asap-audit-summary-desc" id="asapAuditSummaryDesc">
+      A customer reached out with an enquiry. Your AI Employee answered accurately from your approved knowledge, qualified their intent, and prepared the next steps for your team. Each reply took under 3 seconds.
+    </p>
+  </div>
+
+  <!-- 2x2 Metric Cards Grid (General context) -->
+  <div class="asap-audit-metrics-grid">
+    <div class="asap-audit-metric-card">
+      <span class="asap-metric-label">STAGE</span>
+      <span class="asap-metric-val">Qualified & Ready</span>
+    </div>
+    <div class="asap-audit-metric-card">
+      <span class="asap-metric-label">CUSTOMER</span>
+      <span class="asap-metric-val">New customer</span>
+    </div>
+    <div class="asap-audit-metric-card">
+      <span class="asap-metric-label">NEXT ACTION</span>
+      <span class="asap-metric-val">Booking reserved</span>
+    </div>
+    <div class="asap-audit-metric-card">
+      <span class="asap-metric-label">PERSON NEEDED</span>
+      <span class="asap-metric-val">Not yet</span>
+    </div>
+  </div>
+
+  <!-- Event Logs Timeline List -->
+  <div class="asap-audit-timeline">
+
+    <!-- Single Group Header: Just "MESSAGES" -->
+    <div class="asap-audit-group">
+      <div class="asap-group-header">
+        <span>MESSAGES</span>
+        <span class="asap-group-live-badge">Simulation</span>
+      </div>
+
+      <!-- 6 Arriving Events (Self-looping Pure CSS Keyframes) -->
+      <!-- Step 1 (Arrives at ~0.3s) -->
+      <div class="asap-audit-item asap-step-anim-1">
+        <span class="asap-item-dot asap-dot-received"></span>
+        <div class="asap-item-body">
+          <div class="asap-item-title">Message received</div>
+          <div class="asap-item-sub">Customer enquiry via chat</div>
+        </div>
+      </div>
+
+      <!-- Step 2 (Arrives at ~1.2s) -->
+      <div class="asap-audit-item asap-step-anim-2">
+        <span class="asap-item-dot asap-dot-ai"></span>
+        <div class="asap-item-body">
+          <div class="asap-item-title">Intent understood</div>
+          <div class="asap-item-sub">Service information & booking request</div>
+        </div>
+      </div>
+
+      <!-- Step 3 (Arrives at ~2.1s) -->
+      <div class="asap-audit-item asap-step-anim-3">
+        <span class="asap-item-dot asap-dot-ai"></span>
+        <div class="asap-item-body">
+          <div class="asap-item-title">Lead qualified</div>
+          <div class="asap-item-sub">Services matched from approved knowledge</div>
+        </div>
+      </div>
+
+      <!-- Step 4 (Arrives at ~3.0s) -->
+      <div class="asap-audit-item asap-step-anim-4">
+        <span class="asap-item-dot asap-dot-ai"></span>
+        <div class="asap-item-body">
+          <div class="asap-item-title">Action taken</div>
+          <div class="asap-item-sub">Selected optimal time slot & held availability</div>
+        </div>
+      </div>
+
+      <!-- Step 5 (Arrives at ~3.9s) -->
+      <div class="asap-audit-item asap-step-anim-5">
+        <span class="asap-item-dot asap-dot-team"></span>
+        <div class="asap-item-body">
+          <div class="asap-item-title">Team notified</div>
+          <div class="asap-item-sub">Full context sent to your team with conversation summary</div>
+        </div>
+      </div>
+
+      <!-- Step 6 (Arrives at ~4.8s) -->
+      <div class="asap-audit-item asap-step-anim-6">
+        <span class="asap-item-dot asap-dot-ai"></span>
+        <div class="asap-item-body">
+          <div class="asap-item-title">Reply sent</div>
+          <div class="asap-item-sub">In 2.4 seconds · Instant answer delivered</div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Legend Footer -->
+  <div class="asap-audit-legend">
+    <div class="asap-legend-item">
+      <span class="asap-legend-dot asap-dot-ai"></span>
+      <span>AI step</span>
+    </div>
+    <div class="asap-legend-item">
+      <span class="asap-legend-dot asap-dot-team"></span>
+      <span>A person</span>
+    </div>
+    <div class="asap-legend-item">
+      <span class="asap-legend-dot asap-dot-received"></span>
+      <span>Received</span>
+    </div>
+  </div>
+
+</div>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+  /* Main Card Frame */
+  .asap-audit-wrapper {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-color: #171719; /* Deep dark aesthetic matching screenshot */
+    color: #ffffff;
+    border-radius: 28px;
+    padding: 24px 20px;
+    width: 100%;
+    max-width: 360px;
+    box-sizing: border-box;
+    box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06);
+    display: flex;
+    flex-direction: column;
+    margin: 0 auto;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Header Section */
+  .asap-audit-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    margin-bottom: 16px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .asap-audit-live-dot-wrap {
+    margin-top: 4px;
+    flex-shrink: 0;
+  }
+
+  .asap-audit-live-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #e52e2e;
+    box-shadow: 0 0 8px rgba(229, 46, 46, 0.8);
+    animation: asapAuditPulse 2s infinite ease-in-out;
+  }
+
+  @keyframes asapAuditPulse {
+    0%, 100% { opacity: 0.4; transform: scale(0.9); }
+    50% { opacity: 1; transform: scale(1.15); }
+  }
+
+  .asap-audit-header-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    text-align: left;
+  }
+
+  .asap-audit-header-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #ffffff;
+    margin: 0;
+    line-height: 1.25;
+  }
+
+  .asap-audit-header-sub {
+    font-size: 11px;
+    color: #8e8e93;
+    margin: 0;
+    line-height: 1.25;
+  }
+
+  /* Narrative Summary Box */
+  .asap-audit-summary-box {
+    background-color: #202024;
+    border-radius: 18px;
+    padding: 16px 16px 18px 16px;
+    margin-bottom: 14px;
+    text-align: left;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+  }
+
+  .asap-audit-summary-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #ffffff;
+    margin: 0 0 8px 0;
+    line-height: 1.25;
+  }
+
+  .asap-red-period {
+    color: #e52e2e;
+  }
+
+  .asap-audit-summary-desc {
+    font-size: 11.5px;
+    line-height: 1.55;
+    color: #a1a1aa;
+    margin: 0;
+    font-weight: 400;
+  }
+
+  /* 2x2 Metrics Grid */
+  .asap-audit-metrics-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 20px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .asap-audit-metric-card {
+    background-color: #202024;
+    border-radius: 14px;
+    padding: 11px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-align: left;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+  }
+
+  .asap-metric-label {
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: #71717a;
+    text-transform: uppercase;
+  }
+
+  .asap-metric-val {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #ffffff;
+    line-height: 1.25;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Timeline Group */
+  .asap-audit-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .asap-audit-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    text-align: left;
+  }
+
+  .asap-group-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    color: #8e8e93;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    padding: 0 2px 8px 2px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .asap-group-live-badge {
+    font-size: 9px;
+    color: #e52e2e;
+    letter-spacing: 0.08em;
+    background: rgba(229, 46, 46, 0.12);
+    padding: 2px 7px;
+    border-radius: 9999px;
+  }
+
+  /* Individual Event Item */
+  .asap-audit-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 4px 0 10px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    box-sizing: border-box;
+  }
+
+  .asap-audit-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  /* ========================================================
+     PURE CSS LOOPING ARRIVAL ANIMATION (10s TOTAL CYCLE)
+     Guaranteed to run even if GHL delays or blocks scripts
+     ======================================================== */
+  @keyframes asapItemArrival {
+    0% {
+      opacity: 0;
+      transform: translateY(12px) scale(0.96);
+    }
+    4% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    88% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    94% {
+      opacity: 0;
+      transform: translateY(-4px) scale(0.98);
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(12px) scale(0.96);
+    }
+  }
+
+  /* Staggered Arrivals in 10-second Infinite Loop */
+  .asap-step-anim-1 {
+    animation: asapItemArrival 10s infinite;
+    animation-delay: 0.2s;
+    animation-fill-mode: backwards;
+  }
+
+  .asap-step-anim-2 {
+    animation: asapItemArrival 10s infinite;
+    animation-delay: 1.1s;
+    animation-fill-mode: backwards;
+  }
+
+  .asap-step-anim-3 {
+    animation: asapItemArrival 10s infinite;
+    animation-delay: 2.0s;
+    animation-fill-mode: backwards;
+  }
+
+  .asap-step-anim-4 {
+    animation: asapItemArrival 10s infinite;
+    animation-delay: 2.9s;
+    animation-fill-mode: backwards;
+  }
+
+  .asap-step-anim-5 {
+    animation: asapItemArrival 10s infinite;
+    animation-delay: 3.8s;
+    animation-fill-mode: backwards;
+  }
+
+  .asap-step-anim-6 {
+    animation: asapItemArrival 10s infinite;
+    animation-delay: 4.7s;
+    animation-fill-mode: backwards;
+  }
+
+  /* Status Dots */
+  .asap-item-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-top: 5px;
+    flex-shrink: 0;
+  }
+
+  .asap-dot-ai {
+    background-color: #e52e2e; /* Red for AI */
+    box-shadow: 0 0 6px rgba(229, 46, 46, 0.5);
+  }
+
+  .asap-dot-team {
+    background-color: #926f4f; /* Warm tan/brown for Human Team */
+  }
+
+  .asap-dot-received {
+    background-color: transparent;
+    border: 1.8px solid #a1a1aa; /* Hollow circle for received */
+    box-sizing: border-box;
+  }
+
+  .asap-item-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .asap-item-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #ffffff;
+    line-height: 1.25;
+  }
+
+  .asap-item-sub {
+    font-size: 11.5px;
+    color: #8e8e93;
+    line-height: 1.4;
+  }
+
+  /* Legend Footer */
+  .asap-audit-legend {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-top: 18px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    margin-top: 18px;
+    font-size: 10.5px;
+    color: #71717a;
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .asap-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .asap-legend-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+</style>
