@@ -834,10 +834,7 @@ export default {
                     if (phoneInput && phone && !phoneInput.value) { setReactValue(phoneInput, phone); filled = true; }
                     if (companyInput && company && !companyInput.value) { setReactValue(companyInput, company); filled = true; }
 
-                    if (filled) {
-                      clearInterval(autofillInterval);
-                    }
-                    if (attempts > 1200) clearInterval(autofillInterval);
+                    if (attempts > 7200) clearInterval(autofillInterval);
                   }, 500);
                 })();
               </script>
@@ -1121,10 +1118,7 @@ ${scrollFix}
       if (phoneInput && phone && !phoneInput.value) { setReactValue(phoneInput, phone); filled = true; }
       if (companyInput && company && !companyInput.value) { setReactValue(companyInput, company); filled = true; }
 
-      if (filled) {
-        clearInterval(autofillInterval);
-      }
-      if (attempts > 1200) clearInterval(autofillInterval);
+      if (attempts > 7200) clearInterval(autofillInterval);
     }, 500);
   })();
 </script>

@@ -1277,7 +1277,7 @@
 
   height: 680px !important;
 
-  padding: 12px !important;
+  padding: 0 !important;
 
   margin: 0 auto !important;
 
@@ -1285,16 +1285,13 @@
 
   display: block !important;
 
-  background: #0B0F17 !important;
+  background: transparent !important;
 
-  border: 4px solid #334155 !important;
+  border: none !important;
 
-  border-radius: 44px !important;
+  border-radius: 0 !important;
 
-  box-shadow:
-    0 25px 50px -12px rgba(0,0,0,.7),
-    0 0 30px rgba(56,189,248,.2),
-    inset 0 0 10px rgba(255,255,255,.1) !important;
+  box-shadow: 0 20px 60px -15px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.04) !important;
 
   overflow: hidden !important;
 
@@ -1315,7 +1312,7 @@
 
   background: #ffffff !important;
 
-  border-radius: 32px !important;
+  border-radius: 0 !important;
 
   overflow: hidden !important;
 
@@ -1495,16 +1492,16 @@
 
     height: 580px !important;
 
-    padding: 8px !important;
+    padding: 0 !important;
 
-    border-radius: 36px !important;
+    border-radius: 0 !important;
 
   }
 
 
   .phone-screen {
 
-    border-radius: 28px !important;
+    border-radius: 0 !important;
 
   }
 
