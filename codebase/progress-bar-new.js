@@ -433,9 +433,10 @@
      CONFIG
      ============================================================ */
   const STATUS_API = "https://mobile-iframe-proxy.ffp-digimarketing.workers.dev/crawl-status";
+  const STANDALONE_STATUS_API = "https://standalone-app-rysk.onrender.com/api/webhook/status";
   const LOCATION_ID = "VU1vYA2ZpTbrXSZ2wwtg";
   const KNOWLEDGE_BASE_ID = "d8z7iwOimrS9bbpGE6Kw";
-  const POLL_INTERVAL = 3000;
+  const POLL_INTERVAL = 2500;
 
   const SECTION_IDS = [
     "section-vMgeo5IkgS",
@@ -652,7 +653,7 @@
      ============================================================ */
   function getTargetWebsite() {
     const params = new URLSearchParams(window.location.search);
-    return params.get("website") || params.get("company_website") || params.get("contact.website") || params.get("url") || "";
+    return params.get("website") || params.get("company_website") || params.get("contact.website") || params.get("url") || sessionStorage.getItem("user_submitted_website") || "";
   }
 
   function getOperationId() {
@@ -683,84 +684,83 @@
   }
 
   /* ============================================================
-     CHECK CRAWL
+     CHECK CRAWL (Synchronized with Standalone App Core Pages)
      ============================================================ */
   async function checkCrawl() {
     if (crawlCompleted) return;
     pollCount++;
 
-    const operationId = getOperationId();
-    const params = new URLSearchParams();
-    params.set("locationId", LOCATION_ID);
-    params.set("knowledgeBaseId", KNOWLEDGE_BASE_ID);
-    if (operationId) params.set("operationId", operationId);
-
-    const url = STATUS_API + "?" + params.toString();
-    console.log("Checking crawl:", url);
+    const website = getTargetWebsite();
 
     try {
-      const response = await fetch(url, { method: "GET", cache: "no-store" });
-      if (!response.ok) throw new Error("HTTP " + response.status);
+      // 1. First priority: Check the Standalone App to verify the Core 3 Pages (Early Bird) are ready
+      if (website) {
+        try {
+          const saUrl = `${STANDALONE_STATUS_API}?site=${encodeURIComponent(website)}`;
+          const saRes = await fetch(saUrl, { method: "GET", cache: "no-store" });
+          if (saRes.ok) {
+            const saData = await saRes.json();
+            console.log("Standalone App crawl status:", saData);
 
-      const data = await response.json();
-      console.log("Crawl response:", data);
+            if (saData.found) {
+              const pagesCount = Number(saData.pagesScraped) || 0;
+              const isEarlyBird = Boolean(saData.earlyBirdReady);
 
-      const details = data.operationDetails || {};
-      const status = String(details.status || "").toLowerCase();
+              // Smoothly map real page counts to visual milestones
+              let dynamicTarget = 18;
+              let msg = "Reading your website...";
 
-      if (details._id) {
-        if (status === "in_progress" || status === "crawling" || status === "training" || pollCount >= 5) {
-          saveOperationId(details._id);
+              if (pagesCount === 1) {
+                dynamicTarget = 42;
+                msg = "Homepage analyzed. Finding contact & location...";
+              } else if (pagesCount === 2) {
+                dynamicTarget = 68;
+                msg = "Contact details found. Processing services...";
+              } else if (pagesCount >= 3 || isEarlyBird) {
+                dynamicTarget = 94;
+                msg = "Core details ready. Loading AI Employee...";
+              }
+
+              simulatedMaxProgress = Math.max(simulatedMaxProgress, dynamicTarget);
+              setProgress(Math.max(currentVisualProgress, dynamicTarget), msg);
+
+              // ONLY complete and show widget if the Core Trinity (Early Bird) is ready!
+              if (isEarlyBird) {
+                crawlCompleted = true;
+                console.log("EARLY BIRD VERIFIED: Core 3 pages ready. Revealing AI Agent.");
+
+                if (pollTimer) {
+                  clearInterval(pollTimer);
+                  pollTimer = null;
+                }
+
+                setProgress(95, "Website processed. Loading AI agent...");
+                loadAgentWidget();
+                return;
+              }
+            }
+          }
+        } catch (saErr) {
+          console.warn("Could not check standalone status:", saErr);
         }
       }
 
-      /* Success */
-      if (status === "successful" || status === "success" || status === "completed") {
-        if (!operationId && pollCount < 5) {
-          console.log("Ignoring early success status, waiting for new crawl to register.");
-          return;
+      // Smooth simulation while waiting for early bird (caps at 88% until verified)
+      if (currentVisualProgress < 88) {
+        let simulatedStep = Math.min(88, currentVisualProgress + 4);
+        let msg = "Reading your website...";
+        if (simulatedStep > 35 && simulatedStep <= 60) msg = "Finding your services & treatments...";
+        else if (simulatedStep > 60) msg = "Learning your hours and contact details...";
+        setProgress(simulatedStep, msg);
+      } else if (currentVisualProgress >= 88 && !crawlCompleted) {
+        if (pollCount >= 36) {
+          // If > 90 seconds pass (e.g. invalid URL or blocked site)
+          setProgress(88, "Taking longer than usual. Please verify the website URL or refresh to retry.");
+        } else {
+          // Normal wait for heavy sites
+          setProgress(88, "Finalising your clinic knowledge base...");
         }
-
-        crawlCompleted = true;
-        console.log("CRAWL COMPLETE.");
-
-        if (pollTimer) {
-          clearInterval(pollTimer);
-          pollTimer = null;
-        }
-
-        simulatedMaxProgress = 92;
-        setProgress(92, "Website processed. Loading AI agent...");
-        loadAgentWidget();
-        return;
       }
-
-      if (status === "failed") {
-        setProgress(0, "Crawling failed. Please try again.");
-        return;
-      }
-
-      /* Still running */
-      const discovered = Number(details.discoveredUrlsCount) || 0;
-      const trained = Number(details.trainedUrlsCount) || 0;
-
-      let targetProgress = 15;
-      if (discovered > 0) targetProgress = 38;
-      if (discovered > 0 && trained > 0) {
-        const ratio = Math.min(trained / discovered, 1);
-        targetProgress = Math.round(45 + ratio * 40);
-      }
-
-      targetProgress = Math.min(targetProgress, 89);
-      simulatedMaxProgress = targetProgress;
-
-      let message;
-      if (targetProgress < 20) message = "Reading your website...";
-      else if (targetProgress < 40) message = "Finding your services...";
-      else if (targetProgress < 70) message = "Learning your hours and contact details...";
-      else message = "Training it on your business...";
-
-      setProgress(Math.max(currentVisualProgress, targetProgress), message);
 
     } catch (error) {
       console.error("Crawl polling error:", error);
