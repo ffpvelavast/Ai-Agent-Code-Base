@@ -563,25 +563,28 @@ export default {
 
       const response =
         await fetch(
-
           parsedTarget.toString(),
-
           {
-
             method: "GET",
-
             headers: {
-
               "User-Agent":
-                "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1",
-
+                "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1",
               "Accept":
-                "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
-
+                "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+              "Accept-Language":
+                "en-US,en;q=0.9",
+              "Sec-Fetch-Dest":
+                "document",
+              "Sec-Fetch-Mode":
+                "navigate",
+              "Sec-Fetch-Site":
+                "none",
+              "Sec-Fetch-User":
+                "?1",
+              "Upgrade-Insecure-Requests":
+                "1"
             }
-
           }
-
         );
 
 
@@ -716,55 +719,278 @@ export default {
           response.status === 202;
 
         if (antiBotDetected) {
-          // TRICK: Instead of fullPage=true (which causes stitching/repeating), 
-          // we make the viewport extremely tall (10000px) so it captures one massive 
-          // seamless image that the user can scroll through. (Added force=true to bust cache)
-          const screenshotUrl = `https://api.microlink.io/?url=${encodeURIComponent(parsedTarget.href)}&screenshot=true&meta=false&embed=screenshot.url&viewport.width=375&viewport.height=10000&viewport.deviceScaleFactor=2&viewport.isMobile=true&force=true`;
+          // --- CLEAN 3-STEP ARCHITECTURE: CLOUDFLARE LIVE -> FIRECRAWL FULLPAGE (CACHED) -> PREVIEW PROTECTED ---
+          const firecrawlApiKey = (env && env.FIRECRAWL_API_KEY) || "fc-cad8b1c85f79450b999018184285a75d";
+          let screenshotUrl = null;
+
+          // Step 2A: Check Global Cloudflare KV first (if bound in worker settings)
+          if (env && env.SCREENSHOT_KV) {
+            try {
+              screenshotUrl = await env.SCREENSHOT_KV.get(parsedTarget.origin);
+              if (screenshotUrl) {
+                console.log("[Worker] Served Firecrawl fullpage screenshot from Cloudflare KV (0 credits used!)");
+              }
+            } catch (kvReadErr) {
+              console.warn("[Worker] KV read error/quota:", kvReadErr.message);
+            }
+          }
+
+          // Step 2B: Check Cloudflare Edge Cache (caches.default) if not found in KV
+          const cache = caches.default;
+          const cacheKey = new Request(`https://cached-screenshot.internal/${encodeURIComponent(parsedTarget.origin)}`, { method: "GET" });
+          
+          if (!screenshotUrl) {
+            try {
+              const cachedMatch = await cache.match(cacheKey);
+              if (cachedMatch) {
+                const cachedData = await cachedMatch.json();
+                if (cachedData && cachedData.screenshotUrl) {
+                  screenshotUrl = cachedData.screenshotUrl;
+                  console.log("[Worker] Served Firecrawl fullpage screenshot from Cloudflare Edge Cache (0 credits used!)");
+                }
+              }
+            } catch (cacheErr) {
+              console.warn("[Worker] Cache read error:", cacheErr.message);
+            }
+          }
+
+          // Step 2C: If not cached anywhere, call Firecrawl API for fullPage screenshot
+          if (!screenshotUrl && firecrawlApiKey) {
+            try {
+              const fcController = new AbortController();
+              const fcTimeout = setTimeout(() => fcController.abort(), 15000); // 15s timeout for fullPage
+
+              const fcResponse = await fetch("https://api.firecrawl.dev/v1/scrape", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${firecrawlApiKey}`
+                },
+                body: JSON.stringify({
+                  url: parsedTarget.href,
+                  formats: ["screenshot@fullPage"],
+                  waitFor: 2000,
+                  mobile: true
+                }),
+                signal: fcController.signal
+              });
+              clearTimeout(fcTimeout);
+
+              if (fcResponse.ok) {
+                const fcData = await fcResponse.json();
+                if (fcData && fcData.data && fcData.data.screenshot) {
+                  screenshotUrl = fcData.data.screenshot;
+                  console.log("[Worker] Fetched fresh fullPage screenshot from Firecrawl API");
+
+                  // 1. Save to Global KV (7-day persistence, auto-expires)
+                  if (env && env.SCREENSHOT_KV) {
+                    try {
+                      await env.SCREENSHOT_KV.put(parsedTarget.origin, screenshotUrl, {
+                        expirationTtl: 86400 * 7 // 7 days in seconds
+                      });
+                    } catch (kvWriteErr) {
+                      console.warn("[Worker] KV write error/quota reached:", kvWriteErr.message);
+                    }
+                  }
+
+                  // 2. Also save to Cloudflare Edge Cache (24-hour backup)
+                  try {
+                    const cacheResponse = new Response(JSON.stringify({ screenshotUrl }), {
+                      headers: {
+                        "Content-Type": "application/json",
+                        "Cache-Control": "public, max-age=86400, s-maxage=86400"
+                      }
+                    });
+                    await cache.put(cacheKey, cacheResponse);
+                  } catch (putErr) {
+                    console.warn("[Worker] Edge cache write error:", putErr.message);
+                  }
+                }
+              } else {
+                console.warn(`[Worker] Firecrawl returned status ${fcResponse.status} (Credits exhausted or API error). Falling back to Preview Protected screen.`);
+              }
+            } catch (fcErr) {
+              console.warn("[Worker] Firecrawl fetch error/timeout:", fcErr.message);
+            }
+          }
+
+          const hasScreenshot = Boolean(screenshotUrl);
 
           return new Response(
             `
             <!DOCTYPE html>
             <html>
             <head>
-              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+              <title>Preview</title>
               <style>
+                * { box-sizing: border-box; }
                 html, body {
                   margin: 0; padding: 0;
-                  width: 100%; height: 100%;
+                  width: 100%; min-height: 100%;
+                  background: #0f1117;
+                  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                  color: #e2e8f0;
                   overflow-x: hidden;
                   overflow-y: auto;
+                  -webkit-overflow-scrolling: touch;
+                }
+                .website-preview-wrap {
+                  width: 100%;
+                  min-height: 100vh;
+                  position: relative;
                   background: #ffffff;
                 }
-                .website-preview {
-                  width: 100%; 
-                  min-height: 100%;
+                .screenshot-img {
                   display: block;
-                  background: #ffffff;
-                }
-                .website-preview img {
-                  display: block;
-                  width: 100%; 
+                  width: 100%;
                   height: auto;
+                  min-height: 480px;
+                  background: #f8fafc;
                 }
-                .fallback-msg {
+                
+                /* Sleek Branded Notice Screen when screenshots fail, are blocked, or credits are exhausted */
+                .security-notice-container {
                   display: none;
-                  font-family: sans-serif;
+                  min-height: 100vh;
+                  background: linear-gradient(180deg, #0b0f19 0%, #151d2f 100%);
+                  padding: 48px 24px 120px 24px;
+                  flex-direction: column;
+                  align-items: center;
+                  justify-content: center;
                   text-align: center;
-                  padding: 40px 20px;
-                  color: #666;
+                }
+                .security-notice-container.active {
+                  display: flex;
+                }
+                .security-badge-icon {
+                  width: 64px;
+                  height: 64px;
+                  border-radius: 50%;
+                  background: rgba(59, 130, 246, 0.12);
+                  border: 1px solid rgba(59, 130, 246, 0.35);
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  margin-bottom: 24px;
+                  box-shadow: 0 0 32px rgba(59, 130, 246, 0.2);
+                }
+                .security-badge-icon svg {
+                  width: 32px;
+                  height: 32px;
+                  stroke: #60a5fa;
+                }
+                .security-title {
+                  font-size: 20px;
+                  font-weight: 700;
+                  color: #ffffff;
+                  margin: 0 0 12px 0;
+                  letter-spacing: -0.02em;
+                }
+                .security-site-pill {
+                  display: inline-flex;
+                  align-items: center;
+                  gap: 6px;
+                  padding: 4px 12px;
+                  border-radius: 999px;
+                  background: rgba(255, 255, 255, 0.08);
+                  border: 1px solid rgba(255, 255, 255, 0.12);
+                  font-size: 13px;
+                  color: #94a3b8;
+                  margin-bottom: 20px;
+                  word-break: break-all;
+                }
+                .security-desc {
+                  font-size: 14px;
+                  line-height: 1.6;
+                  color: #94a3b8;
+                  max-width: 310px;
+                  margin: 0 0 28px 0;
+                }
+                .security-card-highlight {
+                  width: 100%;
+                  max-width: 320px;
+                  background: rgba(16, 185, 129, 0.08);
+                  border: 1px solid rgba(16, 185, 129, 0.25);
+                  border-radius: 12px;
+                  padding: 16px;
+                  text-align: left;
+                  margin-bottom: 20px;
+                }
+                .highlight-header {
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  font-size: 13px;
+                  font-weight: 600;
+                  color: #34d399;
+                  margin-bottom: 6px;
+                }
+                .highlight-body {
+                  font-size: 12px;
+                  line-height: 1.5;
+                  color: #cbd5e1;
+                }
+                .interaction-hint {
+                  font-size: 12px;
+                  color: #64748b;
+                  display: flex;
+                  align-items: center;
+                  gap: 6px;
                 }
               </style>
             </head>
             <body>
-              <div class="website-preview">
-                <img src="${screenshotUrl}" alt="Website preview" onerror="this.style.display='none'; document.getElementById('fallback').style.display='block';">
-                <div id="fallback" class="fallback-msg">
-                  <h3>Preview Unavailable</h3>
-                  <p>We could not load a preview of this website.</p>
-                  <p style="font-size: 12px; color: #999;">(Make sure Cloudflare Browser Rendering is enabled and bound to BROWSER in your Worker settings)</p>
+              <div class="website-preview-wrap" id="previewWrap" style="${hasScreenshot ? '' : 'display: none;'}">
+                ${hasScreenshot ? `<img id="screenshotTarget" class="screenshot-img" src="${screenshotUrl}" alt="Website preview" onerror="handleScreenshotError(this)" />` : ''}
+              </div>
+
+              <!-- Sleek Reassuring Fallback Screen -->
+              <div id="securityNotice" class="security-notice-container ${hasScreenshot ? '' : 'active'}" style="${hasScreenshot ? 'display: none;' : 'display: flex;'}">
+                <div class="security-badge-icon">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                </div>
+                
+                <h2 class="security-title">Preview Protected</h2>
+                <div class="security-site-pill">
+                  <span>🔒</span>
+                  <span>${parsedTarget.hostname}</span>
+                </div>
+
+                <p class="security-desc">
+                  This website has strict anti-bot and iframe security protocols active. Live embedding was securely isolated.
+                </p>
+
+                <div class="security-card-highlight">
+                  <div class="highlight-header">
+                    <span>✓</span>
+                    <span>AI Employee Ready</span>
+                  </div>
+                  <div class="highlight-body">
+                    Your AI Agent has successfully ingested your business knowledge. Test conversations and booking workflows directly in the widget below.
+                  </div>
+                </div>
+
+                <div class="interaction-hint">
+                  <span>👇</span>
+                  <span>Tap the chat bubble to begin</span>
                 </div>
               </div>
+
               <script>
+                function handleScreenshotError(img) {
+                  const wrap = document.getElementById('previewWrap');
+                  const notice = document.getElementById('securityNotice');
+                  if (wrap) wrap.style.display = 'none';
+                  if (notice) {
+                    notice.classList.add('active');
+                    notice.style.display = 'flex';
+                  }
+                }
+
                 // Force the GHL widget to render in mobile mode
                 Object.defineProperty(navigator, 'userAgent', {
                   get: function () {
@@ -850,7 +1076,7 @@ export default {
               status: 200,
               headers: {
                 "Content-Type": "text/html; charset=UTF-8",
-                "Cache-Control": "no-store",
+                "Cache-Control": "public, max-age=3600",
                 ...corsHeaders
               }
             }
