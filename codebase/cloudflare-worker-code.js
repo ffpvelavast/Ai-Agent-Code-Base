@@ -860,6 +860,8 @@ export default {
                   align-items: center;
                   justify-content: center;
                   text-align: center;
+                  position: relative;
+                  box-sizing: border-box;
                 }
                 .security-notice-container.active {
                   display: flex;
@@ -946,11 +948,14 @@ export default {
                   justify-content: center;
                   align-items: center;
                   margin-top: 10px;
+                  position: absolute;
+                  bottom: 0;
+                  left: 0;
                 }
                 .asap-logo-white-card {
                   background: #ffffff;
-                  padding: 10px 22px;
-                  border-radius: 999px;
+                  width: 100%;
+                  padding: 6px 22px;
                   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
                   display: inline-flex;
                   align-items: center;
