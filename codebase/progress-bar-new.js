@@ -730,18 +730,13 @@
               simulatedMaxProgress = Math.max(simulatedMaxProgress, dynamicTarget);
               setProgress(Math.max(currentVisualProgress, dynamicTarget), msg);
 
-              // ONLY complete and show widget if the Core Trinity (Early Bird) is ready!
+              // STAGE 2: Early Bird scraped! Now wait for GHL to finish vector indexing (~8-10s)
               if (isEarlyBird) {
-                crawlCompleted = true;
-                console.log("EARLY BIRD VERIFIED: Core 3 pages ready. Revealing AI Agent.");
-
                 if (pollTimer) {
                   clearInterval(pollTimer);
                   pollTimer = null;
                 }
-
-                setProgress(95, "Website processed. Loading AI agent...");
-                loadAgentWidget();
+                startGhlIndexingBuffer();
                 return;
               }
             }
@@ -751,26 +746,65 @@
         }
       }
 
-      // Smooth simulation while waiting for early bird (caps at 88% until verified)
-      if (currentVisualProgress < 88) {
-        let simulatedStep = Math.min(88, currentVisualProgress + 4);
+      // Smooth simulation while waiting for early bird (caps at 82% until verified)
+      if (currentVisualProgress < 82) {
+        let simulatedStep = Math.min(82, currentVisualProgress + 4);
         let msg = "Reading your website...";
-        if (simulatedStep > 35 && simulatedStep <= 60) msg = "Finding your services & treatments...";
-        else if (simulatedStep > 60) msg = "Learning your hours and contact details...";
+        if (simulatedStep > 35 && simulatedStep <= 55) msg = "Finding your services & treatments...";
+        else if (simulatedStep > 55) msg = "Learning your hours and contact details...";
         setProgress(simulatedStep, msg);
-      } else if (currentVisualProgress >= 88 && !crawlCompleted) {
+      } else if (currentVisualProgress >= 82 && !crawlCompleted) {
         if (pollCount >= 36) {
           // If > 90 seconds pass (e.g. invalid URL or blocked site)
-          setProgress(88, "Taking longer than usual. Please verify the website URL or refresh to retry.");
+          setProgress(82, "Taking longer than usual. Please verify the website URL or refresh to retry.");
         } else {
-          // Normal wait for heavy sites
-          setProgress(88, "Finalising your clinic knowledge base...");
+          setProgress(82, "Analyzing clinic services and location...");
         }
       }
 
     } catch (error) {
       console.error("Crawl polling error:", error);
     }
+  }
+
+  /* ============================================================
+     STAGE 2: GHL VECTOR INDEXING BUFFER (~8-10 seconds)
+     Ensures GoHighLevel finishes embedding the core 3 pages before
+     the widget opens, guaranteeing Turn 1 questions are answered!
+     ============================================================ */
+  function startGhlIndexingBuffer() {
+    console.log("EARLY BIRD SCRAPED: Waiting ~8s for GoHighLevel vector indexing...");
+    if (simulationTimer) {
+      clearInterval(simulationTimer);
+      simulationTimer = null;
+    }
+
+    let bufferProgress = Math.max(86, currentVisualProgress);
+    const target = 100;
+    const durationMs = 8500; // 8.5 seconds for GHL ingestion
+    const intervalMs = 500;
+    const increment = (target - bufferProgress) / (durationMs / intervalMs);
+
+    const bufferTimer = setInterval(function () {
+      bufferProgress = Math.min(target, bufferProgress + increment);
+      
+      let syncMsg = "Connecting AI Employee to clinic knowledge base...";
+      if (bufferProgress >= 93) {
+        syncMsg = "Training AI on treatments, contact & pricing...";
+      }
+      if (bufferProgress >= 98) {
+        syncMsg = "AI Employee ready! Opening live demo...";
+      }
+
+      setProgress(Math.round(bufferProgress), syncMsg);
+
+      if (bufferProgress >= target) {
+        clearInterval(bufferTimer);
+        crawlCompleted = true;
+        console.log("GHL INDEXING COMPLETE: Opening AI Agent Widget.");
+        loadAgentWidget();
+      }
+    }, intervalMs);
   }
 
   /* ============================================================
