@@ -151,6 +151,7 @@
       margin-top: 10px;
       position: absolute;
       bottom: 0;
+      left: 0;
     }
 
     .asap-logo-white-card {
@@ -170,33 +171,6 @@
       display: block;
     }
 
-    /* Floating Chat Bubble Simulation */
-    .fake-chat-bubble {
-      position: absolute;
-      bottom: 24px;
-      right: 24px;
-      width: 56px;
-      height: 56px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #e52e2e 0%, #b91c1c 100%);
-      box-shadow: 0 8px 24px rgba(229, 46, 46, 0.45);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      animation: floatPulse 2.5s ease-in-out infinite;
-    }
-
-    .fake-chat-bubble svg {
-      width: 26px;
-      height: 26px;
-      fill: #ffffff;
-    }
-
-    @keyframes floatPulse {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-6px); }
-    }
   </style>
 </head>
 <body>
@@ -216,7 +190,7 @@
       
       <div class="security-site-pill">
         <span>🔒</span>
-        <span>saestheticsclinic.com</span>
+        <span>spacio.sg</span>
       </div>
 
       <p class="security-desc">
@@ -250,13 +224,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Simulating the GHL Chat Widget Bubble
-    <div class="fake-chat-bubble" title="GHL Chat Widget">
-      <svg viewBox="0 0 24 24">
-        <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
-      </svg>
-    </div> -->
   </div>
 
 </body>
