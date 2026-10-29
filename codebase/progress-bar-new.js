@@ -653,7 +653,13 @@
      ============================================================ */
   function getTargetWebsite() {
     const params = new URLSearchParams(window.location.search);
-    return params.get("website") || params.get("company_website") || params.get("contact.website") || params.get("url") || sessionStorage.getItem("user_submitted_website") || "";
+    return params.get("website") || 
+           params.get("company_website") || 
+           params.get("contact.website") || 
+           params.get("url") || 
+           localStorage.getItem("user_submitted_website") || 
+           sessionStorage.getItem("user_submitted_website") || 
+           "";
   }
 
   function getOperationId() {
