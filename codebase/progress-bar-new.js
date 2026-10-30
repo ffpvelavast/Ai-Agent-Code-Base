@@ -773,7 +773,7 @@
      the widget opens, guaranteeing Turn 1 questions are answered!
      ============================================================ */
   function startGhlIndexingBuffer() {
-    console.log("EARLY BIRD SCRAPED: Waiting ~8s for GoHighLevel vector indexing...");
+    console.log("EARLY BIRD SCRAPED: Waiting ~12s for GoHighLevel vector indexing...");
     if (simulationTimer) {
       clearInterval(simulationTimer);
       simulationTimer = null;
@@ -781,7 +781,7 @@
 
     let bufferProgress = Math.max(86, currentVisualProgress);
     const target = 100;
-    const durationMs = 8500; // 8.5 seconds for GHL ingestion
+    const durationMs = 12500; // 12.5 seconds optimal buffer for GHL vector embedding
     const intervalMs = 500;
     const increment = (target - bufferProgress) / (durationMs / intervalMs);
 
@@ -789,10 +789,11 @@
       bufferProgress = Math.min(target, bufferProgress + increment);
       
       let syncMsg = "Connecting AI Employee to clinic knowledge base...";
-      if (bufferProgress >= 93) {
-        syncMsg = "Training AI on treatments, contact & pricing...";
-      }
-      if (bufferProgress >= 98) {
+      if (bufferProgress >= 90 && bufferProgress < 95) {
+        syncMsg = "Learning treatments, doctors, hours & contact...";
+      } else if (bufferProgress >= 95 && bufferProgress < 99) {
+        syncMsg = "Finalizing AI clinic knowledge index...";
+      } else if (bufferProgress >= 99) {
         syncMsg = "AI Employee ready! Opening live demo...";
       }
 
