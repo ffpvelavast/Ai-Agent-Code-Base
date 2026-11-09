@@ -720,7 +720,7 @@ export default {
 
         if (antiBotDetected) {
           // --- CLEAN 3-STEP ARCHITECTURE: CLOUDFLARE LIVE -> FIRECRAWL FULLPAGE (CACHED) -> PREVIEW PROTECTED ---
-          const firecrawlApiKey = (env && env.FIRECRAWL_API_KEY) || "fc-cad8b1c85f79450b999018184285a75d";
+          const firecrawlApiKey = (env && env.FIRECRAWL_API_KEY) || "";
           let screenshotUrl = null;
 
           // Step 2A: Check Global Cloudflare KV first (if bound in worker settings)
