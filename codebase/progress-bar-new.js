@@ -873,7 +873,7 @@
     const script = document.createElement("script");
     script.src = "https://widgets.leadconnectorhq.com/loader.js";
     script.setAttribute("data-resources-url", "https://widgets.leadconnectorhq.com/chat-widget/loader.js");
-    script.setAttribute("data-widget-id", "6a8c69c3c041361bdc038c9b");
+    script.setAttribute("data-widget-id", "6aaccce19d58142ef9ac2d87");
 
     const urlParams = new URLSearchParams(window.location.search);
     const firstName = urlParams.get('first_name') || urlParams.get('name');
@@ -919,7 +919,7 @@
       attempts++;
       const widget = document.querySelector("chat-widget");
       const iframe = document.querySelector("chat-widget iframe");
-      const widgetShadow = document.querySelector("[data-widget-id='6a8c69c3c041361bdc038c9b']");
+      const widgetShadow = document.querySelector("[data-widget-id='6aaccce19d58142ef9ac2d87']");
 
       if (widget || iframe || widgetShadow) {
         console.log("AI widget detected.");
