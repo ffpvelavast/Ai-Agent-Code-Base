@@ -711,8 +711,33 @@
             if (saData.found) {
               const pagesCount = Number(saData.pagesScraped) || 0;
               const isEarlyBird = Boolean(saData.earlyBirdReady);
+              const isFullyCompleted = saData.status === "COMPLETED";
 
-              // Smoothly map real page counts to visual milestones
+              // ❌ EXPLICIT FAILED CRAWL HANDLING (Broken URL / Dead Domain / Scraping Block):
+              // If the crawler finished but couldn't scrape any valid content, don't keep polling for 90 seconds!
+              if (saData.status === "FAILED") {
+                console.warn("⚠️ Website crawl failed on backend.");
+                if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+                if (simulationTimer) { clearInterval(simulationTimer); simulationTimer = null; }
+                setProgress(82, "Could not scrape website content. Please verify your URL and try again.");
+                return;
+              }
+
+              // ⚡ ALREADY-CRAWLED SITES BUFFER:
+              // Backend already has the pages, but GoHighLevel still needs ~9-10s
+              // to trigger the webhook, attach the document, and finish vector indexing!
+              if (isFullyCompleted && pagesCount > 0) {
+                console.log("⚡ ALREADY CRAWLED WEBSITE DETECTED: Giving GHL 9s to finish vector indexing...");
+                if (pollTimer) {
+                  clearInterval(pollTimer);
+                  pollTimer = null;
+                }
+                setProgress(84, "Connecting AI Employee to your website knowledge...");
+                startGhlIndexingBuffer();
+                return;
+              }
+
+              // Smoothly map real page counts to visual milestones for FRESH crawls
               let dynamicTarget = 18;
               let msg = "Reading your website...";
 
@@ -730,7 +755,7 @@
               simulatedMaxProgress = Math.max(simulatedMaxProgress, dynamicTarget);
               setProgress(Math.max(currentVisualProgress, dynamicTarget), msg);
 
-              // STAGE 2: Early Bird scraped! Now wait for GHL to finish vector indexing (~8-10s)
+              // STAGE 2: Fresh crawl Early Bird reached! Wait for GHL to finish vector indexing (~8-10s)
               if (isEarlyBird) {
                 if (pollTimer) {
                   clearInterval(pollTimer);
@@ -739,6 +764,16 @@
                 startGhlIndexingBuffer();
                 return;
               }
+            } else if (!saData.found && pollCount === 4) {
+              // 🛡️ SELF-HEALING FALLBACK:
+              // If 10 seconds passed and the backend has no job registered for this site (e.g. GHL webhook was delayed),
+              // trigger the backend scrape directly from the frontend so the progress bar never freezes!
+              console.log("⚠️ Self-healing fallback: Triggering backend crawl directly...");
+              fetch(STANDALONE_STATUS_API.replace('/status', '/start-job'), {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ websiteUrl: website })
+              }).catch(err => console.warn("Self-healing trigger attempt:", err));
             }
           }
         } catch (saErr) {

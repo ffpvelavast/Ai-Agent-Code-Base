@@ -723,24 +723,17 @@
                 return;
               }
 
-              // ⚡ INSTANT FAST-TRACK FOR DUPLICATE / ALREADY-CRAWLED SITES:
-              // If the site was already completely scraped in the past, GHL vector indexing is already finished!
-              // Do NOT make the user wait 12.5 seconds. Fast-track directly to 100% in 1.5 seconds.
+              // ⚡ ALREADY-CRAWLED SITES BUFFER:
+              // Backend already has the pages, but GoHighLevel still needs ~9-10s
+              // to trigger the webhook, attach the document, and finish vector indexing!
               if (isFullyCompleted && pagesCount > 0) {
-                console.log("⚡ ALREADY CRAWLED WEBSITE DETECTED: Fast-forwarding directly to 100%!");
+                console.log("⚡ ALREADY CRAWLED WEBSITE DETECTED: Giving GHL 9s to finish vector indexing...");
                 if (pollTimer) {
                   clearInterval(pollTimer);
                   pollTimer = null;
                 }
-                if (simulationTimer) {
-                  clearInterval(simulationTimer);
-                  simulationTimer = null;
-                }
-                setProgress(100, "Knowledge already verified! Opening AI Employee...");
-                setTimeout(function () {
-                  crawlCompleted = true;
-                  loadAgentWidget();
-                }, 1500);
+                setProgress(84, "Connecting AI Employee to your website knowledge...");
+                startGhlIndexingBuffer();
                 return;
               }
 
