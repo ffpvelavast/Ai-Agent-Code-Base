@@ -711,8 +711,40 @@
             if (saData.found) {
               const pagesCount = Number(saData.pagesScraped) || 0;
               const isEarlyBird = Boolean(saData.earlyBirdReady);
+              const isFullyCompleted = saData.status === "COMPLETED";
 
-              // Smoothly map real page counts to visual milestones
+              // ❌ EXPLICIT FAILED CRAWL HANDLING (Broken URL / Dead Domain / Scraping Block):
+              // If the crawler finished but couldn't scrape any valid content, don't keep polling for 90 seconds!
+              if (saData.status === "FAILED") {
+                console.warn("⚠️ Website crawl failed on backend.");
+                if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+                if (simulationTimer) { clearInterval(simulationTimer); simulationTimer = null; }
+                setProgress(82, "Could not scrape website content. Please verify your URL and try again.");
+                return;
+              }
+
+              // ⚡ INSTANT FAST-TRACK FOR DUPLICATE / ALREADY-CRAWLED SITES:
+              // If the site was already completely scraped in the past, GHL vector indexing is already finished!
+              // Do NOT make the user wait 12.5 seconds. Fast-track directly to 100% in 1.5 seconds.
+              if (isFullyCompleted && pagesCount > 0) {
+                console.log("⚡ ALREADY CRAWLED WEBSITE DETECTED: Fast-forwarding directly to 100%!");
+                if (pollTimer) {
+                  clearInterval(pollTimer);
+                  pollTimer = null;
+                }
+                if (simulationTimer) {
+                  clearInterval(simulationTimer);
+                  simulationTimer = null;
+                }
+                setProgress(100, "Knowledge already verified! Opening AI Employee...");
+                setTimeout(function () {
+                  crawlCompleted = true;
+                  loadAgentWidget();
+                }, 1500);
+                return;
+              }
+
+              // Smoothly map real page counts to visual milestones for FRESH crawls
               let dynamicTarget = 18;
               let msg = "Reading your website...";
 
@@ -730,7 +762,7 @@
               simulatedMaxProgress = Math.max(simulatedMaxProgress, dynamicTarget);
               setProgress(Math.max(currentVisualProgress, dynamicTarget), msg);
 
-              // STAGE 2: Early Bird scraped! Now wait for GHL to finish vector indexing (~8-10s)
+              // STAGE 2: Fresh crawl Early Bird reached! Wait for GHL to finish vector indexing (~8-10s)
               if (isEarlyBird) {
                 if (pollTimer) {
                   clearInterval(pollTimer);
@@ -739,6 +771,16 @@
                 startGhlIndexingBuffer();
                 return;
               }
+            } else if (!saData.found && pollCount === 4) {
+              // 🛡️ SELF-HEALING FALLBACK:
+              // If 10 seconds passed and the backend has no job registered for this site (e.g. GHL webhook was delayed),
+              // trigger the backend scrape directly from the frontend so the progress bar never freezes!
+              console.log("⚠️ Self-healing fallback: Triggering backend crawl directly...");
+              fetch(STANDALONE_STATUS_API.replace('/status', '/start-job'), {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ websiteUrl: website })
+              }).catch(err => console.warn("Self-healing trigger attempt:", err));
             }
           }
         } catch (saErr) {
